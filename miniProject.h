@@ -19,13 +19,25 @@
 #include <iostream>
 
 //Define buttons
-#define _BTN
-#define _BTN
-#define _BTN
-#define _BTN
+static const int BTNS[0, 2, 3, 4];
+
+//Interrupt Times
+static const int INTERRUPT = 200;
+static const int ALARM_WAIT = ;
+
+//ALARM LED
+static const int ALARM_LED = 1;
+
+//RTC Constants
+static const char RTCAddr = 0x6f;
+static const char SEC = 0x00; 
+static const char MIN = 0x01;
+static const char HOUR = 0x02;
+static const char TIMEZONE = 2;
 
 //SPI Settings
-#define SPI_CHAN // Write your value here
-#define SPI_SPEED // Write your value here
+static const int SPI_CHAN = 0;        
+static const int SPI_SPEED = 256000;  
+
 
 #endif
