@@ -23,7 +23,7 @@ static const int BTNS[0, 2, 3, 4];
 
 //Interrupt Times
 static const int INTERRUPT = 200;
-static const int ALARM_WAIT = ;
+static const int ALARM_WAIT = 180000;
 
 //ALARM LED
 static const int ALARM_LED = 1;
