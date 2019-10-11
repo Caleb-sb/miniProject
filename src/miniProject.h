@@ -30,14 +30,17 @@ static const int ALARM_LED = 1;
 
 //RTC Constants
 static const char RTCAddr = 0x6f;
-static const char SEC = 0x00; 
+static const char SEC = 0x00;
 static const char MIN = 0x01;
 static const char HOUR = 0x02;
 static const char TIMEZONE = 2;
 
 //SPI Settings
-static const int SPI_CHAN = 0;        
-static const int SPI_SPEED = 256000;  
+static const int SPI_CHAN = 0;
+static const int SPI_SPEED = 256000;
+
+int setup_gpio(void);
+int main(void);
 
 
 #endif
