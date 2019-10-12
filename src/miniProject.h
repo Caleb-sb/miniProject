@@ -36,7 +36,8 @@ static const char HOUR = 0x02;
 static const char TIMEZONE = 2;
 
 //SPI Settings
-static const int SPI_CHAN = 0;
+static const int SPI_CHAN0 = 0;
+static const int SPI_CHAN1 = 1;
 static const int SPI_SPEED = 256000;
 
 int setup_gpio(void);
