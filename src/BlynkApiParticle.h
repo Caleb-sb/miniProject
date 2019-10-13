@@ -1,5 +1,5 @@
 /**
- * @file       BlynkApiWiringPi.h
+ * @file       BlynkApiParticle.h
  * @author     Volodymyr Shymanskyy
  * @license    This project is released under the MIT License (MIT)
  * @copyright  Copyright (c) 2015 Volodymyr Shymanskyy
@@ -8,14 +8,11 @@
  *
  */
 
-#ifndef BlynkApiWiringPi_h
-#define BlynkApiWiringPi_h
+#ifndef BlynkApiParticle_h
+#define BlynkApiParticle_h
 
 #include "Blynk/BlynkApi.h"
-
-#ifndef BLYNK_INFO_DEVICE
-    #define BLYNK_INFO_DEVICE  "Raspberry"
-#endif
+#include "Particle.h"
 
 #ifdef BLYNK_NO_INFO
 
@@ -55,7 +52,6 @@ void BlynkApi<Proto>::sendInfo()
 
     char mem_dyn[64];
     BlynkParam profile_dyn(mem_dyn, 0, sizeof(mem_dyn));
-    profile_dyn.add_key("conn", "Socket");
 #ifdef BOARD_TEMPLATE_ID
     {
         const char* tmpl = BOARD_TEMPLATE_ID;
@@ -65,7 +61,13 @@ void BlynkApi<Proto>::sendInfo()
     }
 #endif
 
+#ifdef BLYNK_HAS_PROGMEM
+    char mem[profile_len];
+    memcpy_P(mem, profile+8, profile_len);
+    static_cast<Proto*>(this)->sendCmd(BLYNK_CMD_INTERNAL, 0, mem, profile_len, profile_dyn.getBuffer(), profile_dyn.getLength());
+#else
     static_cast<Proto*>(this)->sendCmd(BLYNK_CMD_INTERNAL, 0, profile+8, profile_len, profile_dyn.getBuffer(), profile_dyn.getLength());
+#endif
     return;
 }
 
@@ -109,17 +111,16 @@ void BlynkApi<Proto>::processCmd(const void* buff, size_t len)
             ++it;
             if (!strcmp(it.asStr(), "in")) {
                 pinMode(pin, INPUT);
-                pullUpDnControl(pin, PUD_OFF);
-            } else if (!strcmp(it.asStr(), "out")) {
+            } else if (!strcmp(it.asStr(), "out") || !strcmp(it.asStr(), "pwm")) {
                 pinMode(pin, OUTPUT);
+#ifdef INPUT_PULLUP
             } else if (!strcmp(it.asStr(), "pu")) {
-                pinMode(pin, INPUT);
-                pullUpDnControl(pin, PUD_UP);
+                pinMode(pin, INPUT_PULLUP);
+#endif
+#ifdef INPUT_PULLDOWN
             } else if (!strcmp(it.asStr(), "pd")) {
-                pinMode(pin, INPUT);
-                pullUpDnControl(pin, PUD_DOWN);
-            } else if (!strcmp(it.asStr(), "pwm")) {
-                pinMode(pin, PWM_OUTPUT);
+                pinMode(pin, INPUT_PULLDOWN);
+#endif
             } else {
 #ifdef BLYNK_DEBUG
                 BLYNK_LOG4(BLYNK_F("Invalid pin "), pin, BLYNK_F(" mode "), it.asStr());
@@ -141,16 +142,32 @@ void BlynkApi<Proto>::processCmd(const void* buff, size_t len)
         if (++it >= param.end())
             return;
 
+#ifdef ESP8266
+        // Disable PWM...
+        analogWrite(pin, 0);
+#endif
+#ifndef BLYNK_MINIMIZE_PINMODE_USAGE
         pinMode(pin, OUTPUT);
+#endif
         digitalWrite(pin, it.asInt() ? HIGH : LOW);
+    } break;
+    case BLYNK_HW_AR: {
+        char mem[16];
+        BlynkParam rsp(mem, 0, sizeof(mem));
+        rsp.add("aw");
+        rsp.add(pin);
+        rsp.add(analogRead(pin));
+        static_cast<Proto*>(this)->sendCmd(BLYNK_CMD_HARDWARE, 0, rsp.getBuffer(), rsp.getLength()-1);
     } break;
     case BLYNK_HW_AW: {
         // Should be 1 parameter (value)
         if (++it >= param.end())
             return;
 
-        pinMode(pin, PWM_OUTPUT);
-        pwmWrite(pin, it.asInt());
+#ifndef BLYNK_MINIMIZE_PINMODE_USAGE
+        pinMode(pin, OUTPUT);
+#endif
+        analogWrite(pin, it.asInt());
     } break;
 
 #endif

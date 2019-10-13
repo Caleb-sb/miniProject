@@ -11,7 +11,7 @@
 #ifndef BlynkApiWiringPi_h
 #define BlynkApiWiringPi_h
 
-#include "Blynk/BlynkApi.h"
+#include <Blynk/BlynkApi.h>
 
 #ifndef BLYNK_INFO_DEVICE
     #define BLYNK_INFO_DEVICE  "Raspberry"

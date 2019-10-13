@@ -41,7 +41,7 @@ static const int SPI_CHAN1 = 1;
 static const int SPI_SPEED = 256000;
 
 int setup_gpio(void);
-int main(void);
+int main(int argc, char* argv[]);
 
 
 #endif
