@@ -19,14 +19,14 @@
 #include <iostream>
 
 //Define buttons
-static const int BTNS[0, 2, 3, 4];
+static const int BTNS[17, 27, 22, 23];
 
 //Interrupt Times
 static const int INTERRUPT = 200;
 static const int ALARM_WAIT = 180000;
 
 //ALARM LED
-static const int ALARM_LED = 1;
+static const int ALARM_LED = 19;
 
 //RTC Constants
 static const char RTCAddr = 0x6f;
