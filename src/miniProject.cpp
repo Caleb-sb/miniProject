@@ -17,6 +17,11 @@ static uint16_t port;
 
 using namespace std;
 
+void *dataThread(void *threadargs);
+void toggleSampling(int param);
+
+long lastInterruptTime = 0;
+
 unsigned char startByte = 1;
 unsigned char sendByte;
 char configByte0 = 0b10000000;
@@ -29,10 +34,24 @@ unsigned short humidityVal, lightVal, DACVal, TempVal;
 double Vout, Vhum, Vlig, Vdac, Vtemp, Temp;
 short outVal;
 
+int sampleInterval = 1;
+
+bool running = false;
+
 unsigned char ADCbuffer[3];
 unsigned char DACbuffer[2];
 
 BlynkTimer tmr;
+
+BLYNK_WRITE(V5)
+{
+    sampleInterval = param[0];
+}
+
+BLYNK_READ(V5)
+{
+  Blynk.virtualWrite(V5, sampleInterval);
+}
 
 int hours,mins,secs;
 
@@ -60,8 +79,65 @@ int setup_gpio(void){
     return 0;
 }
 
-void *dataThread(void *threadargs){
+BLYNK_WRITE(V7)
+{
+    toggleSampling(param[0]);
+}
+
+BLYNK_READ(V7)
+{
+    if (running){
+        Blynk.virtualWrite(V7, 1);
+    } else {
+        Blynk.virtualWrite(V7, 0);
+    }
+  
+}
+
+void toggleSampling(int param){
+    long currentTime = millis();
+    if (currentTime-lastInterruptTime>1000)
+    {
+        if(param == 0)
+        {
+            running = false;
+        }
+        else{
+            running = true;
+            pthread_attr_t tattr;
+            pthread_t thread_id0;
+            int newprio = 99;
+            sched_param param;
+
+            pthread_attr_init (&tattr);
+            pthread_attr_getschedparam (&tattr, &param); /* safe to get existing scheduling param */
+            param.sched_priority = newprio; /* set the priority; others are unchanged */
+            pthread_attr_setschedparam (&tattr, &param); /* setting the new scheduling param */
+            pthread_create(&thread_id0, &tattr, dataThread, (void *)1); /* with new priority specified */
+        }
+        lastInterruptTime = currentTime;
+    }
+    Blynk.syncVirtual(V7);
+}
+
+void *timeThread(void *threadargs){
     while(true){
+        hours = getHours();
+        mins = getMins();
+        secs = getSecs();
+        
+        char timeVal[20] = "";
+        
+        sprintf(timeVal, "%d:%d:%d", hours,mins,secs);
+        
+        Blynk.virtualWrite(V1, timeVal);
+        sleep(1);
+    }
+}
+
+
+void *dataThread(void *threadargs){
+    while(running){
         ADCbuffer[0] = startByte;
         ADCbuffer[1] = configByte0;
         ADCbuffer[2] = 0;
@@ -104,23 +180,15 @@ void *dataThread(void *threadargs){
         Vtemp = ((double)TempVal/(double)1024)*3.3;
         Temp = (Vtemp-0.5)/0.01;
         
-        hours = getHours();
-        mins = getMins();
-        secs = getSecs();
-        
-        char timeVal[20] = "";
-        
-        sprintf(timeVal, "%d:%d:%d", hours,mins,secs);
-        
         Blynk.virtualWrite(V0, Vout);
-        Blynk.virtualWrite(V1, timeVal);
         Blynk.virtualWrite(V2, humidityVal);
         Blynk.virtualWrite(V3, lightVal);
         Blynk.virtualWrite(V4, Temp);
         
-        printf("time: %d:%d:%d    humidity: %d light: %d  Vout: %.2f Vdac: %.2f Temp: %.1f \n", hours,mins,secs, humidityVal, lightVal, Vout, Vdac, Temp);
-        sleep(2);
+        printf("humidity: %d light: %d  Vout: %.2f Vdac: %.2f Temp: %.1f \n", humidityVal, lightVal, Vout, Vdac, Temp);
+        sleep(sampleInterval);
     }
+    pthread_exit(NULL);
 }
 
 int main(int argc, char* argv[]){
@@ -135,13 +203,13 @@ int main(int argc, char* argv[]){
     pthread_attr_getschedparam (&tattr, &param); /* safe to get existing scheduling param */
     param.sched_priority = newprio; /* set the priority; others are unchanged */
     pthread_attr_setschedparam (&tattr, &param); /* setting the new scheduling param */
-    pthread_create(&thread_id, &tattr, dataThread, (void *)1); /* with new priority specified */
+    pthread_create(&thread_id, &tattr, timeThread, (void *)1); /* with new priority specified */
     if (setup_gpio() == 1){
         return 0;
     }
     while (true){
         Blynk.run();
-        printf("%s \n", "waiting...");
+        Blynk.syncVirtual(V5);
         sleep(1);
     }
     pthread_join(thread_id, NULL);
