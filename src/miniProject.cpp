@@ -15,7 +15,7 @@ static uint16_t port;
 
 using namespace std;
 
-void *dataThread(void *threadargs);
+void dataThread(void);
 void toggleSampling(int param);
 void updateSystemTime(void);
 void resetSystemTime(void);
@@ -37,6 +37,7 @@ int sampleInterval = 1;
 int counter;
 
 bool running = false;
+bool alarmed = false;
 
 unsigned char ADCbuffer[3];
 unsigned char DACbuffer[2];
@@ -44,21 +45,42 @@ unsigned char DACbuffer[2];
 char timeVal[20] = "";
 
 int hours,mins,secs, sysHours, sysMins, sysSecs, secondsTimer;
+int lastAlarm;
+WidgetLED alarmLED(V8);
 
 BlynkTimer tmr;
 
+void triggerAlarm(void){
+    if (lastAlarm == 0 || (secondsTimer-lastAlarm >= 180)){
+        alarmed = true;
+    }
+}
+
+void resetAlarm(void){
+    if (alarmed){
+        alarmed = false;
+        lastAlarm = secondsTimer;
+        printf("%s \n", "Alarm cleared");
+    }
+}
+
+void syncAlarmLED(void){
+    if (alarmed){
+        alarmLED.on();
+    } else {
+        alarmLED.off();
+    }
+}
 
 BLYNK_READ(V0)
 {
   Blynk.virtualWrite(V0, Vdac);
 }
 
-
 BLYNK_READ(V2)
 {
   Blynk.virtualWrite(V2, Vhum);
 }
-
 
 BLYNK_READ(V3)
 {
@@ -82,7 +104,18 @@ BLYNK_READ(V5)
 
 BLYNK_WRITE(V7)
 {
-    toggleSampling(param[0]);
+    long currentTime = millis();
+    if (currentTime-lastInterruptTime>500)
+    {
+        if(param[0] == 0)
+        {
+            running = false;
+        }
+        else{
+            running = true;
+        }
+        lastInterruptTime = currentTime;
+    }
 }
 
 BLYNK_READ(V7)
@@ -103,6 +136,16 @@ BLYNK_WRITE(V6){
         lastInterruptTime = currentTime;
     }
 }
+
+BLYNK_WRITE(V9){
+    long currentTime = millis();
+    if (currentTime-lastInterruptTime>200)
+    {
+        resetAlarm();
+        lastInterruptTime = currentTime;
+    }
+}
+
 
 /*
  * Setup Function. Called once
@@ -128,21 +171,6 @@ int setup_gpio(void){
     return 0;
 }
 
-void toggleSampling(int param){
-    long currentTime = millis();
-    if (currentTime-lastInterruptTime>500)
-    {
-        if(param == 0)
-        {
-            running = false;
-        }
-        else{
-            running = true;
-        }
-        lastInterruptTime = currentTime;
-    }
-}
-
 void timeThread(void){
         hours = getHours();
         mins = getMins();
@@ -151,15 +179,12 @@ void timeThread(void){
         updateSystemTime();
 
         sprintf(timeVal, "%d:%d:%d / %d:%d:%d", hours, mins, secs, sysHours, sysMins, sysSecs);
-        //sprintf(timeVal, "%d:%d:%d", hours, mins, secs);
 
         Blynk.virtualWrite(V1, timeVal);
 }
 
 
-void *dataThread(void *threadargs){
-    counter = 1;
-    while(true){
+void dataThread(void){
         if (running){
             if (counter >= sampleInterval){
                 ADCbuffer[0] = startByte;
@@ -203,6 +228,10 @@ void *dataThread(void *threadargs){
                 TempVal = (ADCbuffer[1] << 8) + ADCbuffer[2];
                 Vtemp = ((double)TempVal/(double)1024)*3.3;
                 Temp = (Vtemp-0.5)/0.01;
+                
+                if(Vout < 0.65 || Vout > 2.65){
+                    triggerAlarm();
+                }
 
                 Blynk.virtualWrite(V0, Vout);
                 Blynk.virtualWrite(V2, Vhum);
@@ -220,8 +249,6 @@ void *dataThread(void *threadargs){
         }
         counter++;
         timeThread();
-        sleep(1);
-    }
 }
 
 void updateSystemTime(void){
@@ -233,43 +260,36 @@ void updateSystemTime(void){
 
 void resetSystemTime(void){
     secondsTimer = 0;
+    lastAlarm = 0;
+    alarmed = false;
 }
 
 void loop()
 {
     Blynk.run();
     tmr.run();
-    Blynk.syncVirtual(V7);
-    Blynk.syncVirtual(V5);
-    printf("%s \n", "Waiting..");
-    //timeThread();
-    delay(1000);
 }
 
 int main(int argc, char* argv[]){
     resetSystemTime();
-    //Blynk.virtualWrite(V7, 0);
 
     parse_options(argc, argv, auth, serv, port);
-    
-    pthread_attr_t tattr1;
-    pthread_t thread_id1;
-    int newprio = 99;
-    sched_param param;
-
-    pthread_attr_init (&tattr1);
-    pthread_attr_getschedparam (&tattr1, &param); /* safe to get existing scheduling param */
-    param.sched_priority = newprio; /* set the priority; others are unchanged */
-    pthread_attr_setschedparam (&tattr1, &param); /* setting the new scheduling param */
-    pthread_create(&thread_id1, &tattr1, dataThread, (void *)1); /* with new priority specified */
 
     if (setup_gpio() == 1){
         return 0;
     }
+    counter = 1;
+    tmr.setInterval(1000, [](){
+        Blynk.syncVirtual(V7);
+        Blynk.syncVirtual(V5);
+        syncAlarmLED();
+        printf("%s \n", timeVal);
+    });
+    tmr.setInterval(1000, [](){
+        dataThread();
+    });
     while (true){
         loop();
     }
-    //pthread_join(thread_id0, NULL);
-    //pthread_exit(NULL);
     return 0;
 }
