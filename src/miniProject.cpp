@@ -1,6 +1,7 @@
 #include "miniProject.h"
 #include "currentTime.h"
 
+#include <signal.h> //For the keyboard interrupt
 #include <BlynkApiWiringPi.h>
 #include <BlynkSocket.h>
 #include <BlynkOptionsParser.h>
@@ -242,7 +243,6 @@ void cleanup(int a){
 	digitalWrite(25, LOW);
     alarmed = false;
     syncAlarmLED();
-	printf("\nAlarm LED set LOW\n");
 	exit(0);
 }
 
