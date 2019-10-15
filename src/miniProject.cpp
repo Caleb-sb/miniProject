@@ -107,11 +107,25 @@ void resetAlarm(void){
     }
 }
 
-void syncAlarmLED(void){
-    if (alarmed){
+void lightLEDs(bool set){
+    if (set){
         alarmLED.on();
+        digitalWrite(25, HIGH);
     } else {
         alarmLED.off();
+        digitalWrite(25, LOW);
+    }
+}
+
+void syncAlarmLED(void){
+    if (alarmed){
+        if (digitalRead(25) == 1){
+            lightLEDs(false);
+        } else {
+            lightLEDs(true);
+        }
+    } else {
+        lightLEDs(false);
     }
 }
 
@@ -125,6 +139,9 @@ int setup_gpio(void){
 
     //Set up wiring Pi
     wiringPiSetup();
+    
+    //Set up GPIO pins
+    pinMode(25, OUTPUT);
 
     //setting up the SPI interface
     if (wiringPiSPISetup (SPI_CHAN0, SPI_SPEED) < 0)
