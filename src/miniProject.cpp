@@ -240,6 +240,8 @@ void dataThread(void){
 void cleanup(int a){
 	printf("\nCleaning up...\n");
 	digitalWrite(25, LOW);
+    alarmed = false;
+    syncAlarmLED();
 	printf("\nAlarm LED set LOW\n");
 	exit(0);
 }
