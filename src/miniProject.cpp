@@ -15,62 +15,9 @@ static uint16_t port;
 
 using namespace std;
 
-void dataThread(void);
-void toggleSampling(int param);
-void updateSystemTime(void);
-void resetSystemTime(void);
-
-long lastInterruptTime = 0;
-
-unsigned char startByte = 1;
-unsigned char sendByte;
-char configByte0 = 0b10000000;
-char configByte1 = 0b10010000;
-char configByte2 = 0b10100000;
-char configByte3 = 0b10110000;
-
-unsigned short humidityVal, lightVal, DACVal, TempVal;
-double Vout, Vhum, Vlig, Vdac, Vtemp, Temp;
-short outVal;
-
-int sampleInterval = 1;
-int counter;
-
-bool running = false;
-bool alarmed = false;
-
-unsigned char ADCbuffer[3];
-unsigned char DACbuffer[2];
-
-char timeVal[20] = "";
-
-int hours,mins,secs, sysHours, sysMins, sysSecs, secondsTimer;
-int lastAlarm;
 WidgetLED alarmLED(V8);
 
 BlynkTimer tmr;
-
-void triggerAlarm(void){
-    if (lastAlarm == 0 || (secondsTimer-lastAlarm >= 180)){
-        alarmed = true;
-    }
-}
-
-void resetAlarm(void){
-    if (alarmed){
-        alarmed = false;
-        lastAlarm = secondsTimer;
-        printf("%s \n", "Alarm cleared");
-    }
-}
-
-void syncAlarmLED(void){
-    if (alarmed){
-        alarmLED.on();
-    } else {
-        alarmLED.off();
-    }
-}
 
 BLYNK_READ(V0)
 {
@@ -143,6 +90,28 @@ BLYNK_WRITE(V9){
     {
         resetAlarm();
         lastInterruptTime = currentTime;
+    }
+}
+
+void triggerAlarm(void){
+    if (lastAlarm == 0 || (secondsTimer-lastAlarm >= 180)){
+        alarmed = true;
+    }
+}
+
+void resetAlarm(void){
+    if (alarmed){
+        alarmed = false;
+        lastAlarm = secondsTimer;
+        printf("%s \n", "Alarm cleared");
+    }
+}
+
+void syncAlarmLED(void){
+    if (alarmed){
+        alarmLED.on();
+    } else {
+        alarmLED.off();
     }
 }
 
@@ -228,7 +197,7 @@ void dataThread(void){
                 TempVal = (ADCbuffer[1] << 8) + ADCbuffer[2];
                 Vtemp = ((double)TempVal/(double)1024)*3.3;
                 Temp = (Vtemp-0.5)/0.01;
-                
+
                 if(Vout < 0.65 || Vout > 2.65){
                     triggerAlarm();
                 }
@@ -238,9 +207,9 @@ void dataThread(void){
                 Blynk.virtualWrite(V3, lightVal);
                 Blynk.virtualWrite(V4, Temp);
 
-                printf("humidity: %d light: %d  Vout: %.2f Vdac: %.2f Temp: %.1f \n", humidityVal, lightVal, Vout, Vdac, Temp);
+                printf("humidity: %.2f light: %d  Vout: %.2f Vdac: %.2f Temp: %.1f \n", Vhum, lightVal, Vout, Vdac, Temp);
                 counter = 0;
-            } 
+            }
         } else {
             Blynk.virtualWrite(V0, "-");
             Blynk.virtualWrite(V2, "-");

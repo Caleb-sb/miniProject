@@ -18,15 +18,32 @@
 #include <pthread.h>
 #include <iostream>
 
-//Define buttons
-//static const int BTNS[0, 2, 3, 4];
+long lastInterruptTime = 0;
 
-//Interrupt Times
-//static const int INTERRUPT = 200;
-//static const int ALARM_WAIT = ;
+unsigned char startByte = 1;
+unsigned char sendByte;
+char configByte0 = 0b10000000;
+char configByte1 = 0b10010000;
+char configByte2 = 0b10100000;
+char configByte3 = 0b10110000;
 
-//ALARM LED
-//static const int ALARM_LED = 1;
+unsigned short humidityVal, lightVal, DACVal, TempVal;
+double Vout, Vhum, Vlig, Vdac, Vtemp, Temp;
+short outVal;
+
+int sampleInterval = 1;
+int counter;
+
+bool running = false;
+bool alarmed = false;
+
+unsigned char ADCbuffer[3];
+unsigned char DACbuffer[2];
+
+char timeVal[20] = "";
+
+int hours,mins,secs, sysHours, sysMins, sysSecs, secondsTimer;
+int lastAlarm;
 
 //RTC Constants
 static const char RTCAddr = 0x6f;
@@ -42,6 +59,11 @@ static const int SPI_SPEED = 256000;
 
 int setup_gpio(void);
 int main(int argc, char* argv[]);
+void dataThread(void);
+void toggleSampling(int param);
+void updateSystemTime(void);
+void resetSystemTime(void);
+
 
 
 #endif
