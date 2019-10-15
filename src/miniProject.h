@@ -63,6 +63,11 @@ void dataThread(void);
 void toggleSampling(int param);
 void updateSystemTime(void);
 void resetSystemTime(void);
+void triggerAlarm(void);
+void resetAlarm(void);
+void syncAlarmLED(void);
+void timeThread(void);
+void loop();
 
 
 
