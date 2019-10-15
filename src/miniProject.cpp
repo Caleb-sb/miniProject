@@ -139,7 +139,7 @@ int setup_gpio(void){
 
     //Set up wiring Pi
     wiringPiSetup();
-    
+
     //Set up GPIO pins
     pinMode(25, OUTPUT);
 
@@ -237,6 +237,13 @@ void dataThread(void){
         timeThread();
 }
 
+void cleanup(int a){
+	printf("\nCleaning up...\n");
+	digitalWrite(25, LOW);
+	printf("\nAlarm LED set LOW\n");
+	exit(0);
+}
+
 void updateSystemTime(void){
     sysMins = secondsTimer / 60;
     sysSecs = secondsTimer % 60;
@@ -258,7 +265,7 @@ void loop()
 
 int main(int argc, char* argv[]){
     resetSystemTime();
-
+    signal(SIGINT, cleanup);
     parse_options(argc, argv, auth, serv, port);
 
     if (setup_gpio() == 1){
